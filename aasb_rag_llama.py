@@ -180,7 +180,7 @@ def run_health_check():
 
 
 # -----------------------------
-# SECTION 8 — Interactive CLI
+# SECTION 8 — Interactive 
 # -----------------------------
 def run_interactive(top_k: int, min_top_score: float, min_margin: float):
     print("Type 'exit' or 'quit' to stop.\n")
@@ -274,7 +274,7 @@ if __name__ == "__main__":
 # Section 7 — Health Check
 # Verifies that the LLM loads correctly and responds deterministically.
 #
-# Section 8 — Interactive CLI
+# Section 8 — Interactive 
 # Provides a REPL interface with transparency into confidence and sources.
 #
 # Section 9 — Entry Point
