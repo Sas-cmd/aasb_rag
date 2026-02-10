@@ -1,24 +1,40 @@
+# ============================================================
+# AASB RAG CLI
+# ============================================================
+
+# -----------------------------
+# SECTION 1 — Imports & Constants
+# -----------------------------
 import argparse
 import textwrap
 from typing import List, Dict, Tuple
 import ollama
 from aasb_faiss_retrieve import retrieve
 
-
+# Local LLM model identifier (must exist in Ollama)
 MODEL_NAME = "llama3:instruct"
 
+# Thresholds used to decide whether retrieval is confident enough to answer directly
 MIN_TOP_SCORE = 0.35
 MIN_MARGIN = 0.03
 
 
+# -----------------------------
+# SECTION 2 — Context Construction
+# -----------------------------
 def build_context(pages: List[Dict]) -> str:
+    # Combine retrieved chunks into a single authoritative context with citation headers
     blocks = []
     for p in pages:
         blocks.append(f"[{p['doc_id']} – page {p['page']}]\n{p['text']}")
     return "\n\n".join(blocks)
 
 
+# -----------------------------
+# SECTION 3 — Definition Detection Heuristics
+# -----------------------------
 def contains_definition(text: str) -> bool:
+    # Heuristic check for definition-style language common in standards
     t = text.lower()
     triggers = [
         " is a contract that ",
@@ -32,6 +48,7 @@ def contains_definition(text: str) -> bool:
 
 
 def filter_definition_override(question: str, pages: List[Dict]) -> List[Dict]:
+    # For definitional questions, prefer chunks that actually contain definitions
     q = question.lower().strip()
     if q.startswith("what is") or "define" in q or "what does" in q:
         hits = [p for p in pages if contains_definition(p.get("text", ""))]
@@ -40,7 +57,11 @@ def filter_definition_override(question: str, pages: List[Dict]) -> List[Dict]:
     return pages
 
 
+# -----------------------------
+# SECTION 4 — Confidence & Ambiguity Scoring
+# -----------------------------
 def confidence_stats(pages: List[Dict]) -> Tuple[float, float]:
+    # Compute top score and the gap between the top two results
     scores = [float(p.get("score", 0.0)) for p in pages if p.get("score") is not None]
     if not scores:
         return 0.0, 0.0
@@ -51,6 +72,7 @@ def confidence_stats(pages: List[Dict]) -> Tuple[float, float]:
 
 
 def needs_clarification_gate(pages: List[Dict], min_top_score: float, min_margin: float) -> bool:
+    # Gate when evidence is weak or multiple chunks compete
     top1, margin = confidence_stats(pages)
     if top1 < min_top_score:
         return True
@@ -59,7 +81,11 @@ def needs_clarification_gate(pages: List[Dict], min_top_score: float, min_margin
     return False
 
 
+# -----------------------------
+# SECTION 5 — Prompt Construction
+# -----------------------------
 def build_prompt(question: str, context: str, gated: bool) -> str:
+    # Build a strict prompt that forbids external knowledge and enforces citations
     if gated:
         return textwrap.dedent(f"""
         Output constraint (Mandatory):
@@ -78,19 +104,6 @@ def build_prompt(question: str, context: str, gated: bool) -> str:
         - If the authoritative text does not contain enough to answer, write exactly:
           "Answer: Insufficient evidence in retrieved text."
         - Then ask 1–3 targeted clarifying questions.
-
-        Output format (Mandatory):
-
-        Answer:
-        <1–6 sentences>
-
-        Citations:
-        - <copy one or more bracketed headers exactly, e.g. [AASB_016 – page 14]>
-
-        Clarifying questions:
-        1) <specific clarifier>
-        2) <specific clarifier>
-
 
         Authoritative text:
         {context}
@@ -113,26 +126,6 @@ def build_prompt(question: str, context: str, gated: bool) -> str:
     - If a definition exists in the authoritative text, answer directly and do NOT ask clarifying questions.
     - Ask clarifying questions only if genuinely ambiguous AND no definition exists in the text.
 
-    Output format (choose ONE only):
-
-    A) Direct answer exists:
-    Answer:
-    <concise answer, paraphrased from the text>
-
-    Citations:
-    - <copy one or more bracketed headers exactly, e.g. [AASB_016 – page 14]>
-
-    B) Needs clarification:
-    Clarifying questions:
-    1) <specific clarifier>
-    2) <specific clarifier>
-
-    What can be stated from the provided text so far:
-    <1–5 sentences, only if something relevant exists>
-
-    Citations:
-    - <copy one or more bracketed headers exactly, only if cited above>
-
     Question:
     {question}
 
@@ -141,6 +134,9 @@ def build_prompt(question: str, context: str, gated: bool) -> str:
     """).strip()
 
 
+# -----------------------------
+# SECTION 6 — Core RAG Pipeline
+# -----------------------------
 def ask(
     question: str,
     top_k: int = 7,
@@ -168,6 +164,9 @@ def ask(
     return response["message"]["content"], pages, {"top1": float(top1), "margin": float(margin)}
 
 
+# -----------------------------
+# SECTION 7 — Health Check
+# -----------------------------
 def run_health_check():
     response = ollama.chat(
         model=MODEL_NAME,
@@ -180,6 +179,9 @@ def run_health_check():
     print("model loaded, LLM responding.")
 
 
+# -----------------------------
+# SECTION 8 — Interactive CLI
+# -----------------------------
 def run_interactive(top_k: int, min_top_score: float, min_margin: float):
     print("Type 'exit' or 'quit' to stop.\n")
 
@@ -221,6 +223,9 @@ def run_interactive(top_k: int, min_top_score: float, min_margin: float):
         print("\n" + "-" * 60 + "\n")
 
 
+# -----------------------------
+# SECTION 9 — Entry Point
+# -----------------------------
 def main():
     parser = argparse.ArgumentParser(description="AASB RAG: FAISS semantic retrieval + LLaMA 3")
 
@@ -239,3 +244,39 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ============================================================
+# SECTION-BY-SECTION SUMMARY
+# ============================================================
+# Section 1 — Imports & Constants
+# Defines dependencies, the LLM model, and retrieval confidence thresholds.
+#
+# Section 2 — Context Construction
+# Builds a single authoritative context block with strict citation headers
+# that the LLM must copy verbatim.
+#
+# Section 3 — Definition Detection Heuristics
+# Detects definitional questions and prioritises chunks that contain
+# explicit standard-style definitions.
+#
+# Section 4 — Confidence & Ambiguity Scoring
+# Quantifies retrieval strength and ambiguity using top score and margin.
+#
+# Section 5 — Prompt Construction
+# Enforces no hallucination, exact citation copying, and deterministic
+# output formats, with stricter rules when confidence is low.
+#
+# Section 6 — Core RAG Pipeline
+# Orchestrates retrieval, filtering, gating, prompt construction,
+# and LLM invocation.
+#
+# Section 7 — Health Check
+# Verifies that the LLM loads correctly and responds deterministically.
+#
+# Section 8 — Interactive CLI
+# Provides a REPL interface with transparency into confidence and sources.
+#
+# Section 9 — Entry Point
+# Handles CLI arguments and routes execution.
+# ============================================================
