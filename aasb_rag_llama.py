@@ -226,8 +226,8 @@ def main():
 
     parser.add_argument("--check", action="store_true", help="Run health check only")
     parser.add_argument("--top-k", type=int, default=7, help="Number of chunks to retrieve")
-    #parser.add_argument("--min-top-score", type=float, default=MIN_TOP_SCORE, help="Minimum top score before gating")
-    #parser.add_argument("--min-margin", type=float, default=MIN_MARGIN, help="Minimum top1-top2 margin before gating")
+    parser.add_argument("--min-top-score", type=float, default=MIN_TOP_SCORE, help="Minimum top score before gating")
+    parser.add_argument("--min-margin", type=float, default=MIN_MARGIN, help="Minimum top1-top2 margin before gating")
 
     args = parser.parse_args()
 
