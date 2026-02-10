@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+.conda/
+.vscode/
+
+data/raw_pdfs/
+data/index/
+data/corpus/
+data/reports/
+
+*.pdf
+*.index
+*.jsonl
+
+.DS_Store

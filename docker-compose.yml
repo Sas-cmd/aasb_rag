@@ -1,0 +1,10 @@
+services:
+  aasb_rag:
+    build: .
+    container_name: aasb_rag
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    volumes:
+      - ./data:/app/data
+    stdin_open: true
+    tty: true

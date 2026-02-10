@@ -1,0 +1,16 @@
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+
+
+*.conda
+*.lock
+
+data/raw_pdfs/
+data/corpus/
+data/index/
+

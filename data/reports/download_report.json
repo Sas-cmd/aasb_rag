@@ -1,0 +1,8 @@
+{
+  "total_standards_found": 58,
+  "downloaded": 58,
+  "skipped_existing": 0,
+  "failed": 0,
+  "output_dir": "data\\raw_pdfs",
+  "manifest": "data\\reports\\download_manifest.jsonl"
+}
